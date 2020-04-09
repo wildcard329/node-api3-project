@@ -16,7 +16,7 @@ router.get('/', (req, res) => {
   })
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', validatePostId, (req, res) => {
   db.getById(req.params.id)
   .then(post => {
     if(post) {
@@ -33,7 +33,7 @@ router.get('/:id', (req, res) => {
   });
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', validatePostId, (req, res) => {
   db.remove(req.params.id)
   .then(count => {
     if (count > 0) {
@@ -45,21 +45,41 @@ router.delete('/:id', (req, res) => {
   .catch()
 });
 
-router.put('/:id', (req, res) => {
-  db.update(req.params.id, req.body)
+router.put('/:id', validatePostId, (req, res) => {
+  const changes = req.body
+  db.update(req.params.id, changes)
   .then(post => {
-    if (post) {
-      res.status(200).json(post);
+    if(post) {
+        res.status(200).json(post);
     } else {
-      res.status(400).json({ message: 'The post could not be found' })
+      res.status(404).json({ message: 'post not found' })
     }
+  })
+  .catch(error => {
+    console.error(error.message);
+    res.status(500).json({
+      errorMessage: 'error updating the message'
+    })
   })
 });
 
 // custom middleware
 
 function validatePostId(req, res, next) {
-  // do your magic!
+  const {id} = req.params;
+
+  db.getById(id)
+    .then (post => {
+      if (post) {
+        req.post = post;
+        next();
+      } else {
+        res.status(400).json({ message: 'invalid post id' })
+      }
+    })
+    .catch(err => {
+      res.status(500).json({ message: 'failed', err })
+    })
 }
 
 module.exports = router;
